@@ -1,0 +1,13 @@
+# Entornos virtuales
+venv/
+env/
+
+# Archivos de PyCharm
+.idea/
+
+# Archivos de Python compilados
+*.pyc
+__pycache__/
+
+# Base de datos local de Django
+db.sqlite3
