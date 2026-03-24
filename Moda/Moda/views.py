@@ -108,3 +108,36 @@ def catalogo_productos(request):
         return JsonResponse({'productos': datos_productos}, status=200)
 
     return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+def detalle_producto(request, producto_id):
+    """
+    Endpoint para ver un solo producto (Método GET).
+    Usa Path Params (producto_id en la URL). Ej: /api/productos/1/
+    """
+    if request.method == 'GET':
+        try:
+            # Buscamos el producto exacto por su ID
+            p = Producto.objects.get(id=producto_id)
+
+            # Preparamos los datos extra (categorías e imagen)
+            categorias = list(p.categorias.values_list('nombre', flat=True))
+            imagen_url = request.build_absolute_uri(p.imagen.url) if p.imagen else None
+
+            # Construimos el diccionario con los detalles
+            datos_producto = {
+                'id': p.id,
+                'nombre': p.nombre,
+                'precio': str(p.precio),
+                'marca': p.marca.nombre,
+                'categorias': categorias,
+                'imagen': imagen_url
+            }
+
+            return JsonResponse(datos_producto, status=200)
+
+        except Producto.DoesNotExist:
+            # Si nos piden un ID que no existe, devolvemos error 404 (Not Found)
+            return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+
+    return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
