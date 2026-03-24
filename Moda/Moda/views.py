@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
+from .models import Producto, Marca
 
 
 @csrf_exempt  # Desactiva la protección CSRF web para permitir peticiones desde Android
@@ -58,3 +59,52 @@ def login_usuario(request):
             return JsonResponse({'error': f'Error en los datos: {str(e)}'}, status=400)
 
     return JsonResponse({'error': 'Método no permitido, usa POST'}, status=405)
+
+
+def lista_marcas(request):
+    """Endpoint para obtener todas las marcas con su imagen (Método GET)"""
+    if request.method == 'GET':
+        marcas = Marca.objects.all()
+        datos_marcas = []
+        for m in marcas:
+            # Comprobamos si la marca tiene imagen para no causar errores
+            imagen_url = request.build_absolute_uri(m.imagen.url) if m.imagen else None
+
+            datos_marcas.append({
+                'id': m.id,
+                'nombre': m.nombre,
+                'imagen': imagen_url
+            })
+
+        return JsonResponse({'marcas': datos_marcas}, status=200)
+
+    return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+def catalogo_productos(request):
+    """Endpoint para obtener los productos con sus imágenes (Método GET)"""
+    if request.method == 'GET':
+        marca_query = request.GET.get('marca', None)
+
+        if marca_query:
+            productos = Producto.objects.filter(marca__nombre__icontains=marca_query)
+        else:
+            productos = Producto.objects.all()
+
+        datos_productos = []
+        for p in productos:
+            categorias = list(p.categorias.values_list('nombre', flat=True))
+            imagen_url = request.build_absolute_uri(p.imagen.url) if p.imagen else None
+
+            datos_productos.append({
+                'id': p.id,
+                'nombre': p.nombre,
+                'precio': str(p.precio),
+                'marca': p.marca.nombre,
+                'categorias': categorias,
+                'imagen': imagen_url  # Añadimos la URL de la foto al JSON
+            })
+
+        return JsonResponse({'productos': datos_productos}, status=200)
+
+    return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
