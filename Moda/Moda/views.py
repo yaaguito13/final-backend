@@ -3,7 +3,8 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Producto, Marca
+from .models import Producto, Marca, Favorito
+
 
 
 @csrf_exempt  # Desactiva la protección CSRF web para permitir peticiones desde Android
@@ -141,3 +142,84 @@ def detalle_producto(request, producto_id):
             return JsonResponse({'error': 'Producto no encontrado'}, status=404)
 
     return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+@csrf_exempt
+def gestionar_favoritos(request):
+    """
+    Endpoint para ver (GET) y añadir (POST) favoritos.
+    """
+    if request.method == 'GET':
+        # Leemos el ID del usuario desde la URL (Ej: /api/favoritos/?usuario_id=2)
+        usuario_id = request.GET.get('usuario_id')
+
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        favoritos = Favorito.objects.filter(usuario_id=usuario_id)
+        datos_favoritos = []
+
+        for fav in favoritos:
+            p = fav.producto
+            imagen_url = request.build_absolute_uri(p.imagen.url) if p.imagen else None
+            datos_favoritos.append({
+                'favorito_id': fav.id,
+                'producto_id': p.id,
+                'nombre': p.nombre,
+                'precio': str(p.precio),
+                'marca': p.marca.nombre,
+                'imagen': imagen_url
+            })
+
+        return JsonResponse({'favoritos': datos_favoritos}, status=200)
+
+    elif request.method == 'POST':
+        # Añadir un producto a favoritos
+        try:
+            datos = json.loads(request.body)
+            usuario_id = datos.get('usuario_id')
+            producto_id = datos.get('producto_id')
+
+            usuario = User.objects.get(id=usuario_id)
+            producto = Producto.objects.get(id=producto_id)
+
+            # Comprobamos si ya lo tenía en favoritos para no duplicarlo
+            if Favorito.objects.filter(usuario=usuario, producto=producto).exists():
+                return JsonResponse({'mensaje': 'El producto ya está en favoritos'}, status=200)
+
+            Favorito.objects.create(usuario=usuario, producto=producto)
+            return JsonResponse({'mensaje': 'Añadido a favoritos correctamente'}, status=201)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Producto.DoesNotExist:
+            return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error: {str(e)}'}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+def eliminar_favorito(request, producto_id):
+    """
+    Endpoint para quitar un producto de favoritos (Método DELETE).
+    Usa el producto_id en la ruta y el usuario_id en la query.
+    Ej: DELETE /api/favoritos/1/?usuario_id=2
+    """
+    if request.method == 'DELETE':
+        usuario_id = request.GET.get('usuario_id')
+
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        try:
+            # Buscamos el favorito exacto de ese usuario y ese producto
+            favorito = Favorito.objects.get(usuario_id=usuario_id, producto_id=producto_id)
+            favorito.delete()
+            return JsonResponse({'mensaje': 'Producto eliminado de favoritos'}, status=200)
+
+        except Favorito.DoesNotExist:
+            return JsonResponse({'error': 'El producto no estaba en favoritos'}, status=404)
+
+    return JsonResponse({'error': 'Método no permitido, usa DELETE'}, status=405)
