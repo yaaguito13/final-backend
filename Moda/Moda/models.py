@@ -75,3 +75,40 @@ class ItemCarrito(models.Model):
 
     def __str__(self):
         return f"{self.cantidad}x {self.producto.nombre} en {self.carrito}"
+
+
+# --- MODELOS DE PEDIDOS (CHECKOUT) ---
+
+class Pedido(models.Model):
+    """Guarda el ticket de compra definitivo de un usuario"""
+
+    # Opciones de estado para la pantalla de "Mis Pedidos"
+    ESTADOS = (
+        ('Procesando', 'Procesando'),
+        ('Enviado', 'Enviado'),
+        ('Entregado', 'Entregado'),
+    )
+
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pedidos')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='Procesando')
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"Pedido #{self.id} - {self.usuario.username} ({self.estado})"
+
+
+class ItemPedido(models.Model):
+    """La foto fija de los productos que se compraron en ese pedido"""
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='items')
+    # Usamos SET_NULL por si en el futuro borras una camiseta del catálogo, que el ticket de compra no desaparezca
+    producto = models.ForeignKey(Producto, on_delete=models.SET_NULL, null=True)
+
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=8, decimal_places=2)  # El precio que costaba ese día
+    talla = models.CharField(max_length=10, blank=True, null=True)
+    color = models.CharField(max_length=30, blank=True, null=True)
+
+    def __str__(self):
+        nombre = self.producto.nombre if self.producto else 'Producto descatalogado'
+        return f"{self.cantidad}x {nombre} en Pedido #{self.pedido.id}"
