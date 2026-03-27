@@ -22,11 +22,17 @@ urlpatterns = [
     path('api/favoritos/', views.gestionar_favoritos, name='gestionar_favoritos'),
     path('api/favoritos/<int:producto_id>/', views.eliminar_favorito, name='eliminar_favorito'),
 
-    # Rutas del carrito
+    # Ruta del carrito
     path('api/carrito/', views.gestionar_carrito, name='gestionar_carrito'),
 
-    # Rutas de direcciones
+    # Ruta de direcciones
     path('api/direcciones/', views.gestionar_direcciones, name='gestionar_direcciones'),
+
+    # Ruta de categorias
+    path('api/categorias/', views.lista_categorias, name='categorias'),
+
+    # Ruta de perfil
+    path('api/perfil/', views.perfil_usuario, name='perfil'),
 ]
 
 # <-- NUEVO: Solo para entorno de desarrollo, permite servir los archivos multimedia

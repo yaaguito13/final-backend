@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion  # <-- Añade Carrito e ItemCarrito
+from .models import Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion, Categoria  # <-- Añade Carrito e ItemCarrito
 
 
 
@@ -368,3 +368,57 @@ def gestionar_direcciones(request):
             return JsonResponse({'error': f'Error al guardar: {str(e)}'}, status=400)
 
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+def lista_categorias(request):
+    """
+    Endpoint para obtener todas las categorías con su imagen (Método GET)
+    """
+    if request.method == 'GET':
+        categorias = Categoria.objects.all()
+        datos_categorias = []
+
+        for c in categorias:
+            # Preparamos la URL de la imagen si existe
+            imagen_url = request.build_absolute_uri(c.imagen.url) if c.imagen else None
+
+            datos_categorias.append({
+                'id': c.id,
+                'nombre': c.nombre,
+                'imagen': imagen_url
+            })
+
+        return JsonResponse({'categorias': datos_categorias}, status=200)
+
+    return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+def perfil_usuario(request):
+    """
+    Endpoint para obtener los datos del perfil del usuario (Método GET)
+    Ejemplo de uso: /api/perfil/?usuario_id=2
+    """
+    if request.method == 'GET':
+        usuario_id = request.GET.get('usuario_id')
+
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        try:
+            usuario = User.objects.get(id=usuario_id)
+
+            # Formateamos los datos del usuario para enviarlos
+            datos_usuario = {
+                'id': usuario.id,
+                'username': usuario.username,
+                'email': usuario.email,
+                # Convertimos la fecha de registro a un formato legible de texto
+                'fecha_registro': usuario.date_joined.strftime("%Y-%m-%d")
+            }
+
+            return JsonResponse({'perfil': datos_usuario}, status=200)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+    return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
