@@ -24,6 +24,9 @@ urlpatterns = [
 
     # Rutas del carrito
     path('api/carrito/', views.gestionar_carrito, name='gestionar_carrito'),
+
+    # Rutas de direcciones
+    path('api/direcciones/', views.gestionar_direcciones, name='gestionar_direcciones'),
 ]
 
 # <-- NUEVO: Solo para entorno de desarrollo, permite servir los archivos multimedia

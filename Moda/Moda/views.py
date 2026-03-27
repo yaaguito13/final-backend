@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Producto, Marca, Favorito, Carrito, ItemCarrito # <-- Añade Carrito e ItemCarrito
+from .models import Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion  # <-- Añade Carrito e ItemCarrito
 
 
 
@@ -313,5 +313,58 @@ def gestionar_carrito(request):
             return JsonResponse({'error': 'Producto no encontrado'}, status=404)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+def gestionar_direcciones(request):
+    """
+    Endpoint para ver (GET) y añadir (POST) direcciones de envío.
+    """
+    if request.method == 'GET':
+        usuario_id = request.GET.get('usuario_id')
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        direcciones = Direccion.objects.filter(usuario_id=usuario_id)
+        datos_direcciones = []
+
+        for d in direcciones:
+            datos_direcciones.append({
+                'id': d.id,
+                'titulo': d.titulo,
+                'calle': d.calle,
+                'ciudad': d.ciudad,
+                'codigo_postal': d.codigo_postal
+            })
+
+        return JsonResponse({'direcciones': datos_direcciones}, status=200)
+
+    elif request.method == 'POST':
+        try:
+            datos = json.loads(request.body)
+            usuario_id = datos.get('usuario_id')
+            titulo = datos.get('titulo')  # Ej: "Casa" o "Trabajo"
+            calle = datos.get('calle')
+            ciudad = datos.get('ciudad')
+            codigo_postal = datos.get('codigo_postal')
+
+            usuario = User.objects.get(id=usuario_id)
+
+            # Creamos la nueva dirección en la base de datos
+            Direccion.objects.create(
+                usuario=usuario,
+                titulo=titulo,
+                calle=calle,
+                ciudad=ciudad,
+                codigo_postal=codigo_postal
+            )
+            return JsonResponse({'mensaje': 'Dirección guardada correctamente'}, status=201)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar: {str(e)}'}, status=400)
 
     return JsonResponse({'error': 'Método no permitido'}, status=405)
