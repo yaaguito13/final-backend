@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion, Categoria  # <-- Añade Carrito e ItemCarrito
+from .models import Categoria, Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion, Pedido, ItemPedido # <-- Añade Carrito e ItemCarrito
 
 
 
@@ -422,3 +422,142 @@ def perfil_usuario(request):
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
 
     return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+@csrf_exempt
+def checkout_pedido(request):
+    """
+    Endpoint para convertir el Carrito en un Pedido definitivo (Método POST).
+    """
+    if request.method == 'POST':
+        try:
+            datos = json.loads(request.body)
+            usuario_id = datos.get('usuario_id')
+
+            usuario = User.objects.get(id=usuario_id)
+            carrito = Carrito.objects.get(usuario=usuario)
+            items_carrito = carrito.items.all()
+
+            # 1. Comprobamos que el carrito no esté vacío
+            if not items_carrito.exists():
+                return JsonResponse({'error': 'El carrito está vacío'}, status=400)
+
+            # 2. Creamos el ticket de compra (Pedido)
+            nuevo_pedido = Pedido.objects.create(usuario=usuario, total=0)
+            total_pedido = 0.0
+
+            # 3. Copiamos los artículos del carrito al pedido
+            for item in items_carrito:
+                precio_historico = item.producto.precio  # Guardamos el precio que tiene HOY
+
+                ItemPedido.objects.create(
+                    pedido=nuevo_pedido,
+                    producto=item.producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=precio_historico,
+                    talla=item.talla,
+                    color=item.color
+                )
+                total_pedido += float(precio_historico) * item.cantidad
+
+            # 4. Actualizamos el total del ticket
+            nuevo_pedido.total = total_pedido
+            nuevo_pedido.save()
+
+            # 5. ¡Vaciamos el carrito!
+            items_carrito.delete()
+
+            return JsonResponse({
+                'mensaje': '¡Pedido realizado con éxito!',
+                'pedido_id': nuevo_pedido.id
+            }, status=201)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Carrito.DoesNotExist:
+            return JsonResponse({'error': 'El usuario no tiene carrito activo'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al procesar el pago: {str(e)}'}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+def historial_pedidos(request):
+    """
+    Endpoint para ver la pantalla de "Mis Pedidos" (Método GET).
+    Ejemplo: /api/pedidos/?usuario_id=2
+    """
+    if request.method == 'GET':
+        usuario_id = request.GET.get('usuario_id')
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        pedidos = Pedido.objects.filter(usuario_id=usuario_id).order_by('-fecha_creacion')
+        datos_pedidos = []
+
+        for pedido in pedidos:
+            # Sacamos los artículos de este pedido en concreto
+            items = pedido.items.all()
+            datos_items = []
+
+            for item in items:
+                nombre_prod = item.producto.nombre if item.producto else 'Producto descatalogado'
+                imagen_url = request.build_absolute_uri(
+                    item.producto.imagen.url) if item.producto and item.producto.imagen else None
+
+                datos_items.append({
+                    'nombre': nombre_prod,
+                    'cantidad': item.cantidad,
+                    'talla': item.talla,
+                    'color': item.color,
+                    'precio_unitario': str(item.precio_unitario),
+                    'imagen': imagen_url
+                })
+
+            datos_pedidos.append({
+                'pedido_id': pedido.id,
+                'fecha': pedido.fecha_creacion.strftime("%d-%m-%Y %H:%M"),
+                'estado': pedido.estado,  # "Procesando", "Enviado"...
+                'total': str(pedido.total),
+                'articulos': datos_items
+            })
+
+        return JsonResponse({'pedidos': datos_pedidos}, status=200)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+def modificar_item_carrito(request, item_id):
+    """
+    Endpoint para modificar la cantidad (PUT) o borrar un artículo del carrito (DELETE).
+    Usa Path Params (item_id en la URL). Ej: /api/carrito/1/
+    """
+    try:
+        # Buscamos el artículo específico dentro del carrito
+        item = ItemCarrito.objects.get(id=item_id)
+    except ItemCarrito.DoesNotExist:
+        return JsonResponse({'error': 'El artículo no existe en el carrito'}, status=404)
+
+    if request.method == 'PUT':
+        try:
+            # Leemos la nueva cantidad que nos envía la app
+            datos = json.loads(request.body)
+            nueva_cantidad = datos.get('cantidad')
+
+            if nueva_cantidad is not None and int(nueva_cantidad) > 0:
+                item.cantidad = int(nueva_cantidad)
+                item.save()
+                return JsonResponse({'mensaje': 'Cantidad actualizada correctamente'}, status=200)
+            else:
+                return JsonResponse({'error': 'La cantidad debe ser un número mayor que 0'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'error': f'Error en los datos: {str(e)}'}, status=400)
+
+    elif request.method == 'DELETE':
+        # Borramos el artículo de la base de datos
+        item.delete()
+        return JsonResponse({'mensaje': 'Artículo eliminado del carrito'}, status=200)
+
+    return JsonResponse({'error': 'Método no permitido, usa PUT o DELETE'}, status=405)

@@ -24,6 +24,7 @@ urlpatterns = [
 
     # Ruta del carrito
     path('api/carrito/', views.gestionar_carrito, name='gestionar_carrito'),
+    path('api/carrito/<int:item_id>/', views.modificar_item_carrito, name='modificar_item_carrito'),
 
     # Ruta de direcciones
     path('api/direcciones/', views.gestionar_direcciones, name='gestionar_direcciones'),
@@ -33,6 +34,10 @@ urlpatterns = [
 
     # Ruta de perfil
     path('api/perfil/', views.perfil_usuario, name='perfil'),
+
+    # Rutas de pedidos (CHECKOUT)
+    path('api/pedidos/checkout/', views.checkout_pedido, name='checkout'),
+    path('api/pedidos/', views.historial_pedidos, name='historial_pedidos'),
 ]
 
 # <-- NUEVO: Solo para entorno de desarrollo, permite servir los archivos multimedia
