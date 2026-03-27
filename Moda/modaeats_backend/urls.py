@@ -17,6 +17,13 @@ urlpatterns = [
 
     # Ruta de Detalle de un producto (Path Param)
     path('api/productos/<int:producto_id>/', views.detalle_producto, name='detalle_producto'),
+
+    # Rutas de favoritos
+    path('api/favoritos/', views.gestionar_favoritos, name='gestionar_favoritos'),
+    path('api/favoritos/<int:producto_id>/', views.eliminar_favorito, name='eliminar_favorito'),
+
+    # Rutas del carrito
+    path('api/carrito/', views.gestionar_carrito, name='gestionar_carrito'),
 ]
 
 # <-- NUEVO: Solo para entorno de desarrollo, permite servir los archivos multimedia

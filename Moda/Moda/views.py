@@ -3,7 +3,8 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Producto, Marca
+from .models import Producto, Marca, Favorito, Carrito, ItemCarrito # <-- Añade Carrito e ItemCarrito
+
 
 
 @csrf_exempt  # Desactiva la protección CSRF web para permitir peticiones desde Android
@@ -141,3 +142,176 @@ def detalle_producto(request, producto_id):
             return JsonResponse({'error': 'Producto no encontrado'}, status=404)
 
     return JsonResponse({'error': 'Método no permitido, usa GET'}, status=405)
+
+
+@csrf_exempt
+def gestionar_favoritos(request):
+    """
+    Endpoint para ver (GET) y añadir (POST) favoritos.
+    """
+    if request.method == 'GET':
+        # Leemos el ID del usuario desde la URL (Ej: /api/favoritos/?usuario_id=2)
+        usuario_id = request.GET.get('usuario_id')
+
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        favoritos = Favorito.objects.filter(usuario_id=usuario_id)
+        datos_favoritos = []
+
+        for fav in favoritos:
+            p = fav.producto
+            imagen_url = request.build_absolute_uri(p.imagen.url) if p.imagen else None
+            datos_favoritos.append({
+                'favorito_id': fav.id,
+                'producto_id': p.id,
+                'nombre': p.nombre,
+                'precio': str(p.precio),
+                'marca': p.marca.nombre,
+                'imagen': imagen_url
+            })
+
+        return JsonResponse({'favoritos': datos_favoritos}, status=200)
+
+    elif request.method == 'POST':
+        # Añadir un producto a favoritos
+        try:
+            datos = json.loads(request.body)
+            usuario_id = datos.get('usuario_id')
+            producto_id = datos.get('producto_id')
+
+            usuario = User.objects.get(id=usuario_id)
+            producto = Producto.objects.get(id=producto_id)
+
+            # Comprobamos si ya lo tenía en favoritos para no duplicarlo
+            if Favorito.objects.filter(usuario=usuario, producto=producto).exists():
+                return JsonResponse({'mensaje': 'El producto ya está en favoritos'}, status=200)
+
+            Favorito.objects.create(usuario=usuario, producto=producto)
+            return JsonResponse({'mensaje': 'Añadido a favoritos correctamente'}, status=201)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Producto.DoesNotExist:
+            return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error: {str(e)}'}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+def eliminar_favorito(request, producto_id):
+    """
+    Endpoint para quitar un producto de favoritos (Método DELETE).
+    Usa el producto_id en la ruta y el usuario_id en la query.
+    Ej: DELETE /api/favoritos/1/?usuario_id=2
+    """
+    if request.method == 'DELETE':
+        usuario_id = request.GET.get('usuario_id')
+
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta el parámetro usuario_id'}, status=400)
+
+        try:
+            # Buscamos el favorito exacto de ese usuario y ese producto
+            favorito = Favorito.objects.get(usuario_id=usuario_id, producto_id=producto_id)
+            favorito.delete()
+            return JsonResponse({'mensaje': 'Producto eliminado de favoritos'}, status=200)
+
+        except Favorito.DoesNotExist:
+            return JsonResponse({'error': 'El producto no estaba en favoritos'}, status=404)
+
+    return JsonResponse({'error': 'Método no permitido, usa DELETE'}, status=405)
+
+
+@csrf_exempt
+def gestionar_carrito(request):
+    """
+    Endpoint para ver el carrito (GET) y añadir productos (POST).
+    """
+    if request.method == 'GET':
+        usuario_id = request.GET.get('usuario_id')
+        if not usuario_id:
+            return JsonResponse({'error': 'Falta usuario_id'}, status=400)
+
+        try:
+            usuario = User.objects.get(id=usuario_id)
+            # get_or_create es magia pura: si el usuario no tiene carrito, se lo crea automáticamente.
+            carrito, created = Carrito.objects.get_or_create(usuario=usuario)
+
+            items = carrito.items.all()
+            datos_items = []
+            total_carrito = 0.0  # Aquí iremos sumando el dinero
+
+            for item in items:
+                p = item.producto
+                imagen_url = request.build_absolute_uri(p.imagen.url) if p.imagen else None
+                # Calculamos el subtotal de este artículo (precio x cantidad)
+                subtotal = float(p.precio) * item.cantidad
+                total_carrito += subtotal
+
+                datos_items.append({
+                    'item_id': item.id,
+                    'producto_id': p.id,
+                    'nombre': p.nombre,
+                    'precio_unitario': str(p.precio),
+                    'cantidad': item.cantidad,
+                    'talla': item.talla,
+                    'color': item.color,
+                    'subtotal': str(subtotal),
+                    'imagen': imagen_url
+                })
+
+            return JsonResponse({
+                'carrito_id': carrito.id,
+                'items': datos_items,
+                'total_carrito': str(total_carrito)
+            }, status=200)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+    elif request.method == 'POST':
+        try:
+            datos = json.loads(request.body)
+            usuario_id = datos.get('usuario_id')
+            producto_id = datos.get('producto_id')
+            cantidad = datos.get('cantidad', 1)  # Si no nos envían cantidad, asumimos que es 1
+            talla = datos.get('talla', '')
+            color = datos.get('color', '')
+
+            usuario = User.objects.get(id=usuario_id)
+            producto = Producto.objects.get(id=producto_id)
+
+            # Buscamos o creamos el carrito del usuario
+            carrito, created = Carrito.objects.get_or_create(usuario=usuario)
+
+            # Comprobamos si EXACTAMENTE este producto (misma talla y color) ya está en la cesta
+            item_existente = ItemCarrito.objects.filter(
+                carrito=carrito, producto=producto, talla=talla, color=color
+            ).first()
+
+            if item_existente:
+                # Si ya existe, solo sumamos la cantidad
+                item_existente.cantidad += cantidad
+                item_existente.save()
+                mensaje = 'Cantidad actualizada en el carrito'
+            else:
+                # Si no existe, creamos el nuevo artículo en la cesta
+                ItemCarrito.objects.create(
+                    carrito=carrito, producto=producto,
+                    cantidad=cantidad, talla=talla, color=color
+                )
+                mensaje = 'Producto añadido al carrito'
+
+            return JsonResponse({'mensaje': mensaje}, status=201)
+
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Producto.DoesNotExist:
+            return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
