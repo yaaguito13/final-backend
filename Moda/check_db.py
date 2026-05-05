@@ -1,0 +1,1 @@
+import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'moda_backend.settings'); django.setup(); from Moda.models import Producto, Marca, Categoria; print('Marcas:', list(Marca.objects.values())); print('Productos:', list(Producto.objects.values())); print('Categorias:', list(Categoria.objects.values()))

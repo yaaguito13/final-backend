@@ -3,13 +3,13 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
-from .models import Categoria, Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion, Pedido, ItemPedido # <-- Añade Carrito e ItemCarrito
+from .models import Categoria, Producto, Marca, Favorito, Carrito, ItemCarrito, Direccion, Pedido, ItemPedido
 
 
 
 @csrf_exempt  # Desactiva la protección CSRF web para permitir peticiones desde Android
 def registro_usuario(request):
-    """Endpoint para registrar un nuevo usuario (Método POST)"""
+    """Endpoint para registrar un nuevo usuario (Metodo POST)"""
     if request.method == 'POST':
         try:
             # Leemos los datos en formato JSON que nos enviará la app (o Postman)
@@ -34,7 +34,7 @@ def registro_usuario(request):
 
 @csrf_exempt
 def login_usuario(request):
-    """Endpoint para iniciar sesión (Método POST)"""
+    """Endpoint para iniciar sesión (Metodo POST)"""
     if request.method == 'POST':
         try:
             datos = json.loads(request.body)
@@ -63,7 +63,7 @@ def login_usuario(request):
 
 
 def lista_marcas(request):
-    """Endpoint para obtener todas las marcas con su imagen (Método GET)"""
+    """Endpoint para obtener todas las marcas con su imagen (Metodo GET)"""
     if request.method == 'GET':
         marcas = Marca.objects.all()
         datos_marcas = []
@@ -83,7 +83,7 @@ def lista_marcas(request):
 
 
 def catalogo_productos(request):
-    """Endpoint para obtener los productos con sus imágenes (Método GET)"""
+    """Endpoint para obtener los productos con sus imágenes (Metodo GET)"""
     if request.method == 'GET':
         marca_query = request.GET.get('marca', None)
 
@@ -113,7 +113,7 @@ def catalogo_productos(request):
 
 def detalle_producto(request, producto_id):
     """
-    Endpoint para ver un solo producto (Método GET).
+    Endpoint para ver un solo producto (Metodo GET).
     Usa Path Params (producto_id en la URL). Ej: /api/productos/1/
     """
     if request.method == 'GET':
@@ -203,7 +203,7 @@ def gestionar_favoritos(request):
 @csrf_exempt
 def eliminar_favorito(request, producto_id):
     """
-    Endpoint para quitar un producto de favoritos (Método DELETE).
+    Endpoint para quitar un producto de favoritos (Metodo DELETE).
     Usa el producto_id en la ruta y el usuario_id en la query.
     Ej: DELETE /api/favoritos/1/?usuario_id=2
     """
@@ -372,7 +372,7 @@ def gestionar_direcciones(request):
 
 def lista_categorias(request):
     """
-    Endpoint para obtener todas las categorías con su imagen (Método GET)
+    Endpoint para obtener todas las categorías con su imagen (Metodo GET)
     """
     if request.method == 'GET':
         categorias = Categoria.objects.all()
@@ -395,7 +395,7 @@ def lista_categorias(request):
 
 def perfil_usuario(request):
     """
-    Endpoint para obtener los datos del perfil del usuario (Método GET)
+    Endpoint para obtener los datos del perfil del usuario (Metodo GET)
     Ejemplo de uso: /api/perfil/?usuario_id=2
     """
     if request.method == 'GET':
@@ -427,7 +427,7 @@ def perfil_usuario(request):
 @csrf_exempt
 def checkout_pedido(request):
     """
-    Endpoint para convertir el Carrito en un Pedido definitivo (Método POST).
+    Endpoint para convertir el Carrito en un Pedido definitivo (Metodo POST).
     """
     if request.method == 'POST':
         try:
@@ -484,7 +484,7 @@ def checkout_pedido(request):
 
 def historial_pedidos(request):
     """
-    Endpoint para ver la pantalla de "Mis Pedidos" (Método GET).
+    Endpoint para ver la pantalla de "Mis Pedidos" (Metodo GET).
     Ejemplo: /api/pedidos/?usuario_id=2
     """
     if request.method == 'GET':
