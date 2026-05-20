@@ -10,4 +10,4 @@ env/
 __pycache__/
 
 # Base de datos local de Django
-db.sqlite3
+# db.sqlite3
