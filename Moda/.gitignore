@@ -11,3 +11,7 @@ __pycache__/
 
 # Base de datos local de Django
 # db.sqlite3
+
+# Archivos de sistema macOS
+.DS_Store
+*.DS_Store
