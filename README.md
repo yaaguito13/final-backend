@@ -64,4 +64,6 @@ Si deseas correr este proyecto en tu entorno de desarrollo local, sigue estos pa
    - Panel de Administración: `http://127.0.0.1:8000/admin/`
 
 ---
-*Desarrollado como proyecto de backend.*
+## ✒️ Autor
+
+*   **Yago Pazos Lema** - *Desarrollo Full-Stack (Proyecto de Fin de Ciclo)*
