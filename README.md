@@ -1,4 +1,4 @@
-<h1 align="center"> Backend E-commerce "Moda" </h1>
+<h1 align="center"> Backend E-commerce Moda </h1>
 
 <p align="center">
 <img src="https://img.shields.io/badge/STATUS-EN%20DESARROLLO-green">
